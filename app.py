@@ -60,35 +60,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# 2. 側邊欄設定 (Render 修正版)
+# 2. 側邊欄設定 (secrets.toml 智慧化兼容版)
 # =========================
 with st.sidebar:
     st.title("⚙️ 智慧化設定")
 
-    # --- 關鍵修正區：優先使用標準 os.getenv ---
-    # 在 Render Dashboard 設定的環境變數，會直接進到 os.environ
-    api_key = os.getenv("GEMINI_API_KEY")
+    # 定義一個變數來存 API Key
+    api_key = None
 
-    # 如果 os.getenv 沒抓到 (代表可能是在本機跑)，才去嘗試 st.secrets
-    if not api_key:
-        try:
-            # 使用 try-except 包起來，避免找不到 secrets.toml 時程式崩潰
-            if "GEMINI_API_KEY" in st.secrets:
-                api_key = st.secrets["GEMINI_API_KEY"]
-        except Exception:
-            # 沒抓到也沒關係，讓使用者手動輸入
-            api_key = None
+    try:
+        # 1. 優先嘗試從 Streamlit 的 secrets 保險箱拿資料
+        # 在 Render 上，只要妳設定了 Environment Variables，
+        # Streamlit 其實會自動把它映射到 st.secrets 裡！
+        if "GEMINI_API_KEY" in st.secrets:
+            api_key = st.secrets["GEMINI_API_KEY"]
+        
+        # 2. 如果保險箱沒東西，才找系統環境變數 (Render 的標準做法)
+        if not api_key:
+            api_key = os.getenv("GEMINI_API_KEY")
 
-    # --- 手動輸入作為最後備案 ---
+    except Exception:
+        # 如果連 st.secrets 這個功能都沒載入 (某些環境會報錯)，就改用 os
+        api_key = os.getenv("GEMINI_API_KEY")
+
+    # --- 最後備案：如果都沒抓到，才讓使用者手動輸入 ---
     if not api_key:
         api_key = st.text_input(
             "輸入 Gemini API Key",
             type="password",
-            placeholder="請輸入 API Key 以啟動功能"
+            placeholder="尚未偵測到密鑰，請手動輸入"
         )
 
     if api_key:
-        st.success("✅ 訊號已連線 (API Key Ready)")
+        st.success("✅ 智慧化金鑰已就緒")
     else:
         st.warning("⚠️ 待命：請提供 API Key")
 
