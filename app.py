@@ -60,39 +60,37 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# 2. 側邊欄設定
+# 2. 側邊欄設定 (Render 修正版)
 # =========================
 with st.sidebar:
     st.title("⚙️ 智慧化設定")
 
-    api_key = (
-        st.secrets.get("GEMINI_API_KEY", None)
-        or os.getenv("GEMINI_API_KEY")
-    )
+    # --- 關鍵修正區：優先使用標準 os.getenv ---
+    # 在 Render Dashboard 設定的環境變數，會直接進到 os.environ
+    api_key = os.getenv("GEMINI_API_KEY")
 
+    # 如果 os.getenv 沒抓到 (代表可能是在本機跑)，才去嘗試 st.secrets
+    if not api_key:
+        try:
+            # 使用 try-except 包起來，避免找不到 secrets.toml 時程式崩潰
+            if "GEMINI_API_KEY" in st.secrets:
+                api_key = st.secrets["GEMINI_API_KEY"]
+        except Exception:
+            # 沒抓到也沒關係，讓使用者手動輸入
+            api_key = None
+
+    # --- 手動輸入作為最後備案 ---
     if not api_key:
         api_key = st.text_input(
             "輸入 Gemini API Key",
             type="password",
-            placeholder="本機測試可手動輸入"
+            placeholder="請輸入 API Key 以啟動功能"
         )
 
     if api_key:
-        st.success("✅ API Key 已載入")
+        st.success("✅ 訊號已連線 (API Key Ready)")
     else:
-        st.warning("⚠️ 尚未提供 API Key")
-
-    model_choice = st.selectbox(
-        "模型穩定模式",
-        ["穩定優先", "速度優先"],
-        index=0
-    )
-
-    title_style = st.selectbox(
-        "標題風格",
-        ["AI自動判斷", "穩重資訊型", "強烈衝突型", "口語吸睛型"],
-        index=0
-    )
+        st.warning("⚠️ 待命：請提供 API Key")
 
 # =========================
 # 3. 主介面
