@@ -60,41 +60,63 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================
-# 2. 側邊欄設定 (secrets.toml 智慧化兼容版)
+# 2. 側邊欄設定 (完整功能組裝版)
 # =========================
 with st.sidebar:
     st.title("⚙️ 智慧化設定")
 
-    # 定義一個變數來存 API Key
-    api_key = None
-
-    try:
-        # 1. 優先嘗試從 Streamlit 的 secrets 保險箱拿資料
-        # 在 Render 上，只要妳設定了 Environment Variables，
-        # Streamlit 其實會自動把它映射到 st.secrets 裡！
-        if "GEMINI_API_KEY" in st.secrets:
-            api_key = st.secrets["GEMINI_API_KEY"]
-        
-        # 2. 如果保險箱沒東西，才找系統環境變數 (Render 的標準做法)
-        if not api_key:
-            api_key = os.getenv("GEMINI_API_KEY")
-
-    except Exception:
-        # 如果連 st.secrets 這個功能都沒載入 (某些環境會報錯)，就改用 os
-        api_key = os.getenv("GEMINI_API_KEY")
-
-    # --- 最後備案：如果都沒抓到，才讓使用者手動輸入 ---
+    # --- A. 金鑰管理區 (支援 Secrets, Env, 手動輸入) ---
+    api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        api_key = st.text_input(
-            "輸入 Gemini API Key",
-            type="password",
-            placeholder="尚未偵測到密鑰，請手動輸入"
-        )
+        try:
+            if "GEMINI_API_KEY" in st.secrets:
+                api_key = st.secrets["GEMINI_API_KEY"]
+        except Exception:
+            api_key = None
+
+    if not api_key:
+        api_key = st.text_input("輸入 Gemini API Key", type="password", placeholder="尚未偵測到密鑰")
 
     if api_key:
-        st.success("✅ 智慧化金鑰已就緒")
+        st.success("✅ 訊號已就緒")
     else:
         st.warning("⚠️ 待命：請提供 API Key")
+
+    # --- B. 診斷工具 (找回妳需要的查詢功能) ---
+    if st.button("🔍 診斷：查詢支援模型"):
+        if api_key:
+            try:
+                genai.configure(api_key=api_key)
+                models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                st.write("### 妳的帳號支援：")
+                for m in models:
+                    st.code(m)
+            except Exception as e:
+                st.error(f"診斷失敗：{e}")
+        else:
+            st.error("請先輸入 API Key")
+
+    st.write("---") # 分隔線
+
+    # --- C. 妳原本的配置 (穩定模式、標題風格) ---
+    st.subheader("🎬 播報參數設定")
+    
+    model_choice = st.selectbox(
+        "模型穩定模式",
+        ["穩定優先", "速度優先"],
+        index=0,
+        help="穩定優先會嘗試使用 Pro 等級模型，速度優先則鎖定 Flash 系列。"
+    )
+
+    title_style = st.selectbox(
+        "標題風格",
+        ["AI自動判斷", "穩重資訊型", "強烈衝突型", "口語吸睛型"],
+        index=0,
+        help="這會影響標題的下標語氣與主播讀稿的節奏。"
+    )
+
+    st.write("---")
+    st.info("💡 製作人提示：若上架 Render 遇到速度變慢，建議切換為『穩定優先』嘗試切換備援頻道。")
 
 # =========================
 # 3. 主介面
